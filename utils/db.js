@@ -40,6 +40,16 @@ class DBClient {
     const filesCollection = this.client.db(this.dbName).collection('files');
     return filesCollection.countDocuments();
   }
+
+  async getUser(filter) {
+    const usersCollection = this.client.db(this.dbName).collection('users');
+    return usersCollection.findOne(filter);
+  }
+
+  async insertUser(user) {
+    const usersCollection = this.client.db(this.dbName).collection('users');
+    return usersCollection.insertOne(user);
+  }
 }
 
 // Create and export an instance of DBClient
