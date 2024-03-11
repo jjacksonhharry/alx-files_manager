@@ -1,4 +1,5 @@
-// utils/redis.js
+// constructor that creates a client to Redis
+
 import redis from 'redis';
 import { promisify } from 'util';
 
