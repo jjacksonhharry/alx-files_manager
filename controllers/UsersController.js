@@ -1,7 +1,6 @@
-// controllers/UsersController.js
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
-import dbClient from '../utils/db';
+const { userQueue } = require('../utils/queue');
+const dbClient = require('../utils/db');
+const redisClient = require('../utils/redis');
 
 class UsersController {
   static async postNew(req, res) {
@@ -10,22 +9,30 @@ class UsersController {
     if (!email) {
       return res.status(400).json({ error: 'Missing email' });
     }
-
     if (!password) {
       return res.status(400).json({ error: 'Missing password' });
     }
 
-    const user = await dbClient.collection('users').findOne({ email });
-    if (user) {
+    const userCollection = dbClient.client.db().collection('users');
+    const existingUser = await userCollection.findOne({ email });
+
+    if (existingUser) {
       return res.status(400).json({ error: 'Already exist' });
     }
 
-    const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
-    const newUser = { email, password: hashedPassword };
+    const hashedPassword = sha1(password);
+    const result = await userCollection.insertOne({
+      email,
+      password: hashedPassword,
+    });
 
-    const result = await dbClient.collection('users').insertOne(newUser);
-    return res.status(201).json({ id: result.insertedId, email });
+    const newUser = result.ops[0];
+
+    // Add job to userQueue for sending welcome email
+    await userQueue.add({ userId: newUser._id });
+
+    return res.status(201).json({ id: newUser._id, email: newUser.email });
   }
 }
 
-export default UsersController;
+module.exports = UsersController;
